@@ -1,0 +1,15 @@
+POST http://localhost:3003/api/notes
+Content-Type: application/json
+
+{
+  "name": "Boku no Heroe",
+  "show": true
+}
+
+###
+
+POST http://localhost:3003/api/notes
+Content-Type: application/json
+
+{
+}
