@@ -1,0 +1,7 @@
+PUT http://localhost:3003/api/notes/622d30ba642e65130ff24047
+Content-Type: application/json
+
+{
+  "name": "Boku no Heroe",
+  "show": true
+}

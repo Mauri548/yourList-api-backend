@@ -1,50 +1,65 @@
+require('dotenv').config()
+require('./mongo')
+
 const express = require('express')
-const cors = require('cors')
-
-
 const app = express()
+const cors = require('cors')
+const Note = require('./models/Note')
+
 const logger = require('./loggerMiddleware')
+const notFound = require('./middleware/notFound')
+const handleErrors = require('./middleware/handleErrors')
 
 app.use(cors())
 app.use(express.json())
 
 app.use(logger)
 
-
-let notes = [
-  {
-    'id': 1,
-    'name': 'Naruto',
-    'date': '2019-05-30T17:30:31:098Z',
-    'show': false
-  },
-  {
-    'id': 2,
-    'name': 'One Piece',
-    'date': '2019-05-30T18:39:34:091Z',
-    'show': false
-  },
-]
-
 app.get('/', (req, res) => {
   res.send('<h1>Hello World</h1>')
 })
 
 app.get('/api/notes', (req, res) => {
-  res.json(notes)
+  Note.find({}).then(notes => {
+    res.json(notes)
+  })
 })
 
-app.get('/api/notes/:id', (req, res) => {
-  const id = parseInt(req.params.id)
-  const note = notes.find(item => item.id == id)
+app.get('/api/notes/:id', (req, res, next) => {
+  const { id } = req.params
 
-  note ? res.json(note) : res.status(404).end()
+  Note.findById(id).then(note => {
+    note ? res.json(note) : res.status(404).end()
+  })
+  .catch(err => {
+    next(err)
+  })
+
 })
 
-app.delete('/api/notes/:id', (req, res) => {
-  const id = parseInt(req.params.id)
-  notes = notes.filter(item => item.id != id)
-  res.status(204).end()
+app.delete('/api/notes/:id', (req, res, next) => {
+  const { id } = req.params
+
+  Note.findByIdAndDelete(id).then(() => {
+    res.status(204).end()
+  }).catch(error => next(error))
+
+})
+
+app.put('/api/notes/:id', (req, res, next) => {
+  const { id } = req.params
+  const note = req.body
+  console.log(note)
+
+  const newNoteInfo = {
+    name: note.name,
+    show: note.show
+  }
+
+  Note.findByIdAndUpdate(id, newNoteInfo, { new: true })
+    .then(result => {
+      res.json(result)
+    })
 })
 
 app.post('/api/notes', (req, res) => {
@@ -56,35 +71,22 @@ app.post('/api/notes', (req, res) => {
     })
   }
 
-  const ids = notes.map(note => note.id)
-  const maxId = Math.max(...ids)
-
-  const newNote = {
-    id: maxId + 1,
+  const newNote = new Note({
     name: note.name,
-    show: typeof note.show != 'undefined' ? note.show : false,
-    date: new Date().toISOString()
-  }
+    date: new Date(),
+    show: typeof note.show != 'undefined' ? note.show : false
+  })
 
-  notes = notes.concat(newNote)
+  newNote.save().then(savedNote => {
+    res.status(201).json(savedNote)
+  })
 
-  res.status(201).json(newNote)
-})
-
-app.post('/api/notes/:id', (req, res) => {
-  const id = parseInt(req.params.id)
-  const value = req.body.show
-  const note = notes.find(item => item.id == id)
-  note.show = value
-  res.status(200).json(note)
 })
 
 // es util para mandar el error de 404
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Not found'
-  })
-})
+app.use(notFound)
+
+app.use(handleErrors)
 
 const PORT = process.env.PORT || 3003
 app.listen(PORT, () => {
